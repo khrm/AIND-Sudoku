@@ -1,9 +1,12 @@
+import sys
+import collections
+
 assignments = []
 
 rows = 'ABCDEFGHI'
 cols = '123456789'
-clist = list(cols)
-rlist = list(rows)
+cl = list(cols)
+rl = list(rows)
 
 def cross(A, B):
     return [s+t for s in A for t in B]
@@ -13,11 +16,10 @@ boxes = cross(rows, cols)
 row_units = [cross(r, cols) for r in rows]
 column_units = [cross(rows, c) for c in cols]
 square_units = [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','456','789')]
-diagonal_units = [[x + y for x, y in zip(rlist,clist)]] + [[x + y for x, y in zip(rlist, reversed(clist))]]
-unitlist = row_units + column_units + square_units + diagonal_units
+diag_units = [[x + y for x, y in zip(rl,cl)]] + [[x + y for x, y in zip(rl, reversed(cl))]]
+unitlist = row_units + column_units + square_units + diag_units
 units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
 peers = dict((s, set(sum(units[s],[]))-set([s])) for s in boxes)
-
 
 def assign_value(values, box, value):
     """
@@ -29,6 +31,21 @@ def assign_value(values, box, value):
         assignments.append(values.copy())
     return values
 
+def remove_digits(values, l, vs):
+    """
+    Go through all the list and
+    remove the value v from peers of c for given sudoku
+    Input: A sudoku in dictionary form, l from where value v need to
+           removed
+    Output: The resulting sudoku in dictionary form.
+    """
+    for v in vs:
+        for k in l:
+            if v in values[k]:
+                val = values[k].replace(v,"")
+                assign_value(values, k, val)
+    return values
+
 def naked_twins(values):
     """Eliminate values using the naked twins strategy.
     Args:
@@ -38,8 +55,17 @@ def naked_twins(values):
         the values dictionary with the naked twins eliminated from peers.
     """
     for unit in unitlist:
-        return values
-
+        duo = {k:values[k] for k in unit if len(values[k]) == 2}
+        # reversing duo to find twin
+        rev = collections.defaultdict(list)
+        for k, v in duo.items():
+            rev[v].append(k)
+        # Finding twins
+        twins = {k : v for k, v in rev.items() if len(v) == 2}
+        for v in twins.keys():
+            plist = [val for val in unit if len(values[val]) > 2]
+            remove_digits(values, plist, v)
+    return values
 
 def grid_values(grid):
     """
@@ -73,9 +99,11 @@ def eliminate(values):
     # and return the resulting sudoku in dictionary form.
     for c in (c for c in values.keys() if len(values[c]) == 1):
         v = values[c]
-        for k in peers[c]:
-            val = values[k].replace(v,"")
-            assign_value(values, k, val)
+        remove_digits(values, peers[c], v)
+       # for k in peers[c]:
+        #    val = values[k].replace(v,"")
+         #   assign_value(values, k, val)
+       # values = remove_peers(values, c, v)
     return values
 
 def only_choice(values):
@@ -96,10 +124,12 @@ def reduce_puzzle(values):
     while not stalled:
         # Check how many boxes have a determined value
         solved_values_before = len([box for box in values.keys() if len(values[box]) == 1])
-        # Your code here: Use the Eliminate Strategy
+        # Using the Eliminate Strategy
         eliminate(values)
-        # Your code here: Use the Only Choice Strategy
+        # Using the Only Choice Strategy
         only_choice(values)
+        # Using the naked twins strategy
+        naked_twins(values)
         # Check how many boxes have a determined value, to compare
         solved_values_after = len([box for box in values.keys() if len(values[box]) == 1])
         # If no new values were added, stop the loop.
@@ -141,8 +171,20 @@ def solve(grid):
 
 if __name__ == '__main__':
     diag_sudoku_grid = '2.............62....1....7...6..8...3...9...7...6..4...4....8....52.............3'
-    display(solve(diag_sudoku_grid))
+    # You can specify a puzzle as cmd line arg.
+    # By default we assume, it's non diagonal.
+    # Specify --diag as second arg if it's diagonal.
+    if len(sys.argv) > 1:
+        diag_sudoku_grid = str(sys.argv[1])
+        assert(len(diag_sudoku_grid) == 81)
+        unitlist = row_units + column_units + square_units
 
+    vals = solve(diag_sudoku_grid)
+    if vals == False:
+        print("Puzzle can't be solved")
+        sys.exit()
+
+    display(vals)
     try:
         from visualize import visualize_assignments
         visualize_assignments(assignments)
