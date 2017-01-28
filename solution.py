@@ -100,10 +100,6 @@ def eliminate(values):
     for c in (c for c in values.keys() if len(values[c]) == 1):
         v = values[c]
         remove_digits(values, peers[c], v)
-       # for k in peers[c]:
-        #    val = values[k].replace(v,"")
-         #   assign_value(values, k, val)
-       # values = remove_peers(values, c, v)
     return values
 
 def only_choice(values):
